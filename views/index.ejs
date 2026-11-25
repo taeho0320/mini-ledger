@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>미니 가계부 - 수입/지출 내역서</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <h1>미니 가계부</h1>
+        <p class="subtitle">
+          <%= month === 'all' ? '전체 기간 수입/지출 내역서' : `${month} 수입/지출 내역서` %>
+        </p>
+      </div>
+
+      <div class="filter-bar">
+        <a class="btn btn-secondary" href="/?month=<%= prevMonth %>">◀ 이전 달</a>
+        <form class="month-form" action="/" method="GET">
+          <input
+            type="month"
+            name="month"
+            value="<%= month === 'all' ? currentMonth : month %>"
+            aria-label="조회 월 선택"
+          />
+          <button type="submit" class="btn btn-primary">조회</button>
+        </form>
+        <a class="btn btn-secondary" href="/?month=<%= nextMonth %>">다음 달 ▶</a>
+        <a class="btn <%= month === currentMonth ? 'btn-active' : 'btn-ghost' %>" href="/?month=<%= currentMonth %>">이번 달</a>
+        <a class="btn <%= month === 'all' ? 'btn-active' : 'btn-ghost' %>" href="/?month=all">전체 보기</a>
+      </div>
+    </header>
+
+    <% if (error) { %>
+      <div class="alert alert-error" role="alert"><%= error %></div>
+    <% } %>
+
+    <section class="summary-grid" aria-label="월간 요약">
+      <div class="card summary-card income">
+        <span class="card-label">총 수입</span>
+        <strong class="card-value">+<%= formatNumber(summary.totalIncome) %>원</strong>
+      </div>
+      <div class="card summary-card expense">
+        <span class="card-label">총 지출</span>
+        <strong class="card-value">-<%= formatNumber(summary.totalExpense) %>원</strong>
+      </div>
+      <div class="card summary-card balance <%= summary.balance < 0 ? 'negative' : '' %>">
+        <span class="card-label">잔액 (수입 - 지출)</span>
+        <strong class="card-value"><%= formatNumber(summary.balance) %>원</strong>
+      </div>
+    </section>
+
+    <div class="main-grid">
+      <section class="card form-section">
+        <h2>내역 기록하기</h2>
+        <form action="/transactions" method="POST" class="tx-form">
+          <input type="hidden" name="return_month" value="<%= month %>" />
+
+          <div class="form-row">
+            <label>구분</label>
+            <div class="radio-group">
+              <label class="radio-pill">
+                <input type="radio" name="type" value="지출" checked />
+                <span>지출</span>
+              </label>
+              <label class="radio-pill">
+                <input type="radio" name="type" value="수입" />
+                <span>수입</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="category">카테고리</label>
+            <select id="category" name="category" required>
+              <% categoriesByType['지출'].forEach((cat) => { %>
+                <option value="<%= cat %>"><%= cat %></option>
+              <% }) %>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="amount">금액 (원)</label>
+            <input
+              id="amount"
+              type="number"
+              name="amount"
+              min="1"
+              step="1"
+              placeholder="예: 15000"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <label for="trans_date">날짜</label>
+            <input
+              id="trans_date"
+              type="date"
+              name="trans_date"
+              value="<%= month !== 'all' && !today.startsWith(month) ? `${month}-01` : today %>"
+              required
+            />
+          </div>
+
+          <div class="form-row">
+            <label for="description">내용</label>
+            <input
+              id="description"
+              type="text"
+              name="description"
+              maxlength="255"
+              placeholder="예: 점심 식사, 교통비 등"
+            />
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-full">내역 추가</button>
+        </form>
+      </section>
+
+      <section class="card stats-section">
+        <h2>카테고리별 합계</h2>
+
+        <div class="stats-columns">
+          <div class="stats-group">
+            <h3 class="stats-title expense-text">지출 카테고리</h3>
+            <% if (expenseCategories.length === 0) { %>
+              <p class="empty-note">지출 내역이 없습니다.</p>
+            <% } else { %>
+              <ul class="stats-list">
+                <% expenseCategories.forEach((item) => { %>
+                  <li class="stats-item">
+                    <div class="stats-item-head">
+                      <span><%= item.category %> <small>(<%= item.count %>건)</small></span>
+                      <strong><%= formatNumber(item.total) %>원 (<%= item.percent %>%)</strong>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill expense-fill" style="width: <%= item.percent %>%"></div>
+                    </div>
+                  </li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </div>
+
+          <div class="stats-group">
+            <h3 class="stats-title income-text">수입 카테고리</h3>
+            <% if (incomeCategories.length === 0) { %>
+              <p class="empty-note">수입 내역이 없습니다.</p>
+            <% } else { %>
+              <ul class="stats-list">
+                <% incomeCategories.forEach((item) => { %>
+                  <li class="stats-item">
+                    <div class="stats-item-head">
+                      <span><%= item.category %> <small>(<%= item.count %>건)</small></span>
+                      <strong><%= formatNumber(item.total) %>원 (<%= item.percent %>%)</strong>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill income-fill" style="width: <%= item.percent %>%"></div>
+                    </div>
+                  </li>
+                <% }) %>
+              </ul>
+            <% } %>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card list-section">
+      <div class="list-header">
+        <h2>거래 내역 (<%= transactions.length %>건)</h2>
+      </div>
+
+      <% if (transactions.length === 0) { %>
+        <div class="empty-state">
+          선택한 기간에 등록된 수입/지출 내역이 없습니다.
+        </div>
+      <% } else { %>
+        <div class="table-wrap">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>구분</th>
+                <th>카테고리</th>
+                <th>내용</th>
+                <th class="text-right">금액</th>
+                <th class="text-center">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% transactions.forEach((tx) => { %>
+                <tr>
+                  <td class="nowrap"><%= tx.trans_date %></td>
+                  <td>
+                    <span class="badge <%= tx.type === '수입' ? 'badge-income' : 'badge-expense' %>">
+                      <%= tx.type %>
+                    </span>
+                  </td>
+                  <td><%= tx.category %></td>
+                  <td><%= tx.description || '-' %></td>
+                  <td class="text-right nowrap amount-cell <%= tx.type === '수입' ? 'income-text' : 'expense-text' %>">
+                    <%= tx.type === '수입' ? '+' : '-' %><%= formatNumber(tx.amount) %>원
+                  </td>
+                  <td class="text-center nowrap">
+                    <div class="action-group">
+                      <a
+                        class="btn btn-sm btn-ghost"
+                        href="/transactions/<%= tx.id %>/edit?month=<%= encodeURIComponent(month) %>"
+                      >수정</a>
+                      <form
+                        action="/transactions/<%= tx.id %>/delete"
+                        method="POST"
+                        class="inline-form"
+                        onsubmit="return confirm('이 내역을 삭제하시겠습니까?');"
+                      >
+                        <input type="hidden" name="return_month" value="<%= month %>" />
+                        <button type="submit" class="btn btn-sm btn-danger">삭제</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </div>
+
+  <script>
+    const categoriesByType = <%- JSON.stringify(categoriesByType).replace(/</g, '\\u003c') %>;
+    const typeInputs = document.querySelectorAll('input[name="type"]');
+    const categorySelect = document.getElementById('category');
+
+    function syncCategories(type) {
+      const options = categoriesByType[type] || [];
+      categorySelect.innerHTML = '';
+      options.forEach((cat) => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
+    }
+
+    typeInputs.forEach((input) => {
+      input.addEventListener('change', (e) => {
+        syncCategories(e.target.value);
+      });
+    });
+  </script>
+</body>
+</html>

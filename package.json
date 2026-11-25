@@ -1,0 +1,15 @@
+{
+  "name": "mini-ledger",
+  "version": "1.0.0",
+  "description": "Mini Ledger (Income & Expense Tracker) using Node.js, Express, EJS, and mysql2",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "ejs": "^3.1.10",
+    "express": "^4.21.2",
+    "mysql2": "^3.11.5"
+  }
+}
